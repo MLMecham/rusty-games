@@ -66,6 +66,7 @@ impl HangmanGame {
               |
         =========",
     ];
+    
 
     fn new(secret_word: &str) -> Self {
         HangmanGame {
@@ -113,6 +114,14 @@ impl HangmanGame {
     fn display_hangman(&self) -> &'static str {
         HangmanGame::HANGMAN_STAGES[(6 - self.remaining_attempts) as usize]
     }
+}
+
+fn calc_points(secret_word: &str, remaining_guesses: u8) -> i32 {
+    let word_length = secret_word.len() as i32;
+    let remaining = remaining_guesses as i32;
+    
+    let score = 100 + (10 * remaining) - (5 * (word_length - remaining));
+    score.max(0) // Ensures score never goes negative
 }
 
 pub fn run_hangman() -> i32 {
@@ -191,7 +200,7 @@ pub fn run_hangman() -> i32 {
     
     if game.is_won() {
         println!("Congratulations! You won! The word was: {}", game.secret_word);
-        return 100;
+        return calc_points(secret_word, game.remaining_attempts);
     } else {
         println!("Game over! The word was: {}", game.secret_word);
         return 0;

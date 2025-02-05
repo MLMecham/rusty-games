@@ -195,7 +195,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "3" => {
                 println!("Continuing as guest...");
                 active_user = Some(User {
-                    _id: "Guest".to_string(),
+                    _id: "guest".to_string(),
                     password: "".to_string(),
                     points: 0,
                 });
