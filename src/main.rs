@@ -5,6 +5,8 @@ use tokio::io::{self, AsyncBufReadExt, BufReader};
 use futures::stream::TryStreamExt;
 mod clear;
 mod hangman;
+mod dictionary;
+use dictionary::get_word;
 use hangman::run_hangman;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -128,13 +130,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 
 
-
     loop {
         println!("Welcome to Rusty Games!");
         println!("1. Log In");
         println!("2. Create Account");
         println!("3. Continue as Guest");
         println!("4. Quit");
+        println!("5. Show Dictionary Word");
     
         let choice = reader.next_line().await?.unwrap_or_default().trim().to_string();
     
@@ -204,9 +206,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("Goodbye!");
                 return Ok(());
             }
+            "5" => {
+                match get_word().await{
+                    Ok(word) => { println!("Random word: {}", word);}
+                    Err(e) =>{ println!("Error retrieving word: {}", e);}
+                }
+            },
             _ => {
                 println!("Invalid choice. Try again.");
-                continue;
             }
         }
     
