@@ -136,7 +136,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         println!("2. Create Account");
         println!("3. Continue as Guest");
         println!("4. Quit");
-        println!("5. Show Dictionary Word");
     
         let choice = reader.next_line().await?.unwrap_or_default().trim().to_string();
     
@@ -205,12 +204,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             "4" => {
                 println!("Goodbye!");
                 return Ok(());
-            }
-            "5" => {
-                match get_word().await{
-                    Ok(word) => { println!("Random word: {}", word);}
-                    Err(e) =>{ println!("Error retrieving word: {}", e);}
-                }
             },
             _ => {
                 println!("Invalid choice. Try again.");
@@ -231,7 +224,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             match game_choice.as_str() {
                 "1" => {
                     println!("Starting the game...");
-                    let game_score: i32 = run_hangman();
+                    let game_score: i32 = run_hangman().await;
                     if let Some(user) = active_user.as_mut() { // Get a mutable reference to active_user
                         user.points += game_score;
                         update_user_points(&collection, &user._id, user.points).await.expect("Failed to update points");

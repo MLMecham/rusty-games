@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::io;
+use crate::dictionary::get_word;
 
 struct HangmanGame {
     secret_word: String,
@@ -115,8 +116,28 @@ impl HangmanGame {
     }
 }
 
-pub fn run_hangman() -> i32 {
-    let secret_word = "california";
+pub async fn run_hangman() -> i32 {
+    
+
+    // match get_word().await{
+    //     let Ok(Some(retrieved_word)) => { get_word();}
+    //     Err(e) =>{ println!("Error retrieving word: {}", e);}
+    // }
+
+    let secret_word: String;
+
+match get_word().await {
+    Ok(retrieved_word) => {
+        secret_word = retrieved_word; // Extract and store the retrieved word
+    }
+    Err(e) => {
+        println!("Error retrieving word: {}", e);
+        secret_word = "california".to_string(); // Use default word in case of error
+    }
+}
+
+
+
     let mut game = HangmanGame::new(&secret_word);    
 
     
@@ -190,10 +211,18 @@ pub fn run_hangman() -> i32 {
     println!("{}", game.display_hangman());
     
     if game.is_won() {
-        println!("Congratulations! You won! The word was: {}", game.secret_word);
+        println!("Congratulations! You won! The word was: {}. Press enter to continue", game.secret_word);
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
         return 100;
     } else {
-        println!("Game over! The word was: {}", game.secret_word);
+        println!("Game over! The word was: {}. Press enter to continue", game.secret_word);
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .expect("Failed to read line");
         return 0;
         
     }

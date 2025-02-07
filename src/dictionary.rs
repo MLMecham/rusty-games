@@ -1,9 +1,9 @@
 // API key: QOwqV6Hb558kFN/2mikqBQ==Dd5jt0l2H2BCxARW
 // website: https://www.api-ninjas.com/examples/basic-web-app
 
-
 use std::error::Error;
 use serde_json::Value;
+use rand::Rng; // For generating random numbers
 
 pub async fn get_word() -> Result<String, Box<dyn Error>> {
     // Replace with your API Ninjas API key
@@ -32,7 +32,7 @@ async fn fetch_random_word(api_key: &str) -> Result<String, Box<dyn Error>> {
         .await?;
 
     if response.status() != reqwest::StatusCode::OK {
-        return Err(format!("API Error: {}", response.status()).into());
+        return Ok(random_word_from_bank());
     }
 
     // Extract the body text
@@ -47,9 +47,29 @@ async fn fetch_random_word(api_key: &str) -> Result<String, Box<dyn Error>> {
         if let Some(random_word) = word_array.get(0).and_then(|w| w.as_str()){
             Ok(random_word.to_string())
         }else {
-            Err("Could not retrieve a random word.".into())
+            Ok(random_word_from_bank())
         }
     } else {
-        Err("Unexpected response format.".into())
+        Err("Can't retrieve word from API nor word bank: {}".into())
     }
+
+    
+}
+
+// Function to return a random word from the word bank
+fn random_word_from_bank() -> String {
+    let word_bank = vec![
+        "acquire", "beneficial", "chaos", "delicate", "emerge", "fluctuate", "graceful", 
+        "harmony", "illuminate", "justify", "keen", "leisure", "magnify", "notable", 
+        "obstacle", "prosper", "quaint", "resilient", "sustain", "tenacious", "unique", 
+        "vivid", "wholesome", "zealous", "adapt", "boundary", "compose", "diminish", 
+        "enrich", "fortify", "genuine", "heritage", "innovate", "jubilant", "kinship", 
+        "landscape", "meticulous", "nurture", "optimistic", "perceive", "radiant", 
+        "sacrifice", "tolerate", "uplift", "versatile", "wander", "yearn", "zephyr", 
+        "aspire", "balance", "conquer"
+    ];
+
+    let mut rng = rand::thread_rng();
+    let random_index = rng.gen_range(0..word_bank.len());
+    word_bank[random_index].to_string()
 }
