@@ -257,6 +257,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
                 },
                 "3" => {
+                    if user._id != "guest" {
                         println!("Opening Settings...");
 
                         while let Some(user) = active_user.as_ref() {
@@ -312,6 +313,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                                 _ => println!("Invalid choice. Try again."),
                             }
                         }
+                    } else {
+                        println!("Log in to access user settings!")
+                    }
                     },
 
                 // Back to game menu
