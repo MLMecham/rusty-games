@@ -1,98 +1,49 @@
+use eframe::egui;
 use std::collections::HashSet;
-use std::io;
-
+mod style;
 struct HangmanGame {
     secret_word: String,
     guessed_letters: HashSet<char>,
     remaining_attempts: u8,
+    final_guess_mode: bool,
+    final_guess_input: String,
+    final_score: i32,
+
 }
 
 impl HangmanGame {
     const HANGMAN_STAGES: [&'static str; 7] = [
-        "
-          +---+
-          |   |
-              |
-              |
-              |
-              |
-        =========",
-        "
-          +---+
-          |   |
-          O   |
-              |
-              |
-              |
-        =========",
-        "
-          +---+
-          |   |
-          O   |
-          |   |
-              |
-              |
-        =========",
-        "
-          +---+
-          |   |
-          O   |
-         /|   |
-              |
-              |
-        =========",
-        "
-          +---+
-          |   |
-          O   |
-         /|\\  |
-              |
-              |
-        =========",
-        "
-          +---+
-          |   |
-          O   |
-         /|\\  |
-         /    |
-              |
-        =========",
-        "
-          +---+
-          |   |
-          O   |
-         /|\\  |
-         / \\  |
-              |
-        =========",
+        "\n        +---+\n        |   |\n            |\n            |\n            |\n            |\n      =========",
+        "\n        +---+\n        |   |\n        O   |\n            |\n            |\n            |\n      =========",
+        "\n        +---+\n        |   |\n        O   |\n        |   |\n            |\n            |\n      =========",
+        "\n        +---+\n        |   |\n        O   |\n       /|   |\n            |\n            |\n      =========",
+        "\n        +---+\n        |   |\n        O   |\n       /|\\  |\n            |\n            |\n      =========",
+        "\n        +---+\n        |   |\n        O   |\n       /|\\  |\n       /    |\n            |\n      =========",
+        "\n        +---+\n        |   |\n        O   |\n       /|\\  |\n       / \\  |\n            |\n      =========",
     ];
-    
 
     fn new(secret_word: &str) -> Self {
         HangmanGame {
             secret_word: secret_word.to_lowercase(),
             guessed_letters: HashSet::new(),
             remaining_attempts: 6,
+            final_guess_mode: false,
+            final_guess_input: String::new(),
+            final_score: 0,
         }
     }
 
     fn display_progress(&self) -> String {
         self.secret_word
             .chars()
-            .map(|c| {
-                if self.guessed_letters.contains(&c) {
-                    c
-                } else {
-                    '_'
-                }
-            })
+            .map(|c| if self.guessed_letters.contains(&c) { c } else { '_' })
             .collect()
     }
 
     fn guess(&mut self, c: char) -> bool {
         let c = c.to_ascii_lowercase();
         self.guessed_letters.insert(c);
-        
+
         if !self.secret_word.contains(c) {
             self.remaining_attempts -= 1;
             false
@@ -102,9 +53,7 @@ impl HangmanGame {
     }
 
     fn is_won(&self) -> bool {
-        self.secret_word
-            .chars()
-            .all(|c| self.guessed_letters.contains(&c))
+        self.secret_word.chars().all(|c| self.guessed_letters.contains(&c))
     }
 
     fn is_lost(&self) -> bool {
@@ -114,96 +63,235 @@ impl HangmanGame {
     fn display_hangman(&self) -> &'static str {
         HangmanGame::HANGMAN_STAGES[(6 - self.remaining_attempts) as usize]
     }
-}
 
-fn calc_points(secret_word: &str, remaining_guesses: u8) -> i32 {
-    let word_length = secret_word.len() as i32;
-    let remaining = remaining_guesses as i32;
-    
-    let score = 100 + (10 * remaining) - (5 * (word_length - remaining));
-    score.max(0) // Ensures score never goes negative
-}
+    fn process_final_guess(&mut self, guess: &str) {
+        if guess.len() != self.secret_word.len() {
+            self.remaining_attempts = 0;
+            return;
+        }
 
-pub fn run_hangman() -> i32 {
-    let secret_word = "california";
-    let mut game = HangmanGame::new(&secret_word);    
-
-    
-    println!("Welcome to Hangman!");
-
-    while !game.is_won() && !game.is_lost() {
-        println!("{}", game.display_hangman());
-        println!("Word: {}", game.display_progress());
-        println!("Guesses remaining: {}", game.remaining_attempts);
-        println!("Enter a letter:");
-
-        let mut input = String::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read line");
-
-        if let Some(c) = input.trim().chars().next() {
-            if c == '1' {
-                println!("\n\nFinal guess what is the word? Press q to cancel.\n\n");
-            
-                let mut input2 = String::new();
-                io::stdin()
-                    .read_line(&mut input2)
-                    .expect("Failed to read line");
-            
-                let trimmed_input = input2.trim(); // Trim the input to remove trailing newline
-
-
-                // If the input contains numbers, also end immediately
-                if trimmed_input.chars().any(|c| c.is_numeric()) {
-                    // game.remaining_attempts = 0;
-                    continue;
-                }
-            
-                // If length does not match secret word, end immediately
-                if trimmed_input.len() != secret_word.len() {
-                    game.remaining_attempts = 0;
-
-                    continue; // Exit the block early
-                }
-            
-                
-            
-                // Iterate over characters and process the guess
-                for c in trimmed_input.chars() {
-                    let result = game.guess(c); // Assuming game.guess() takes a char
-                    if !result {
-                        game.remaining_attempts = 0;
-                        break; // Exit the loop early if guess is wrong
-                    }
-                }
-            }
-
-            if !c.is_alphabetic() {
-                println!("Please enter a valid letter!");
-                continue;
-            }
-
-            let already_guessed = !game.guessed_letters.insert(c);
-            if already_guessed {
-                println!("You already guessed that letter!");
-                continue;
-            }
-
-            if !game.guess(c) {
-                println!("Incorrect guess!");
+        if guess.to_lowercase() != self.secret_word {
+            self.remaining_attempts = 0;
+        } else {
+            // Fill in all letters if correct
+            for c in guess.chars() {
+                self.guessed_letters.insert(c.to_ascii_lowercase());
             }
         }
     }
 
-    println!("{}", game.display_hangman());
-    
-    if game.is_won() {
-        println!("Congratulations! You won! The word was: {}", game.secret_word);
-        return calc_points(secret_word, game.remaining_attempts);
-    } else {
-        println!("Game over! The word was: {}", game.secret_word);
-        return 0;
-        
+    // Returns the score based on the game result
+    fn calculate_score(&self) -> i32 {
+        if self.is_won() {
+            10 // Award 10 points if the user wins
+        } else {
+            0 // No points if the user loses
+        }
     }
+
+    // Updates the score during the game
+    pub fn update_score(&mut self, points: i32) {
+        if self.is_won() {
+            self.final_score += points;
+        }
+    }
+}
+
+enum Screen {
+    Home,
+    Game,
+    GameOver,
+}
+
+struct MyApp {
+    current_screen: Screen,
+    game: Option<HangmanGame>,
+    guess_input: String,
+    final_score: i32,
+}
+
+impl MyApp {
+    fn new() -> Self {
+        MyApp {
+            current_screen: Screen::Home,
+            game: None,
+            guess_input: String::new(),
+            final_score: 0,
+        }
+    }
+}
+
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        let apply_style = style::styles();  // Applying styles
+        ctx.set_style(apply_style);
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            match self.current_screen {
+                Screen::Home => {
+                    ui.add_space(ctx.available_rect().height() * 0.35);
+
+                    let available_width = ctx.available_rect().width();
+                    let panel_width = available_width * 0.30;
+
+                    ui.horizontal(|ui| {
+                        ui.add_space(available_width * 0.30);
+                        style::homeScreenPanel().show(ui, |ui| {
+                            ui.set_max_width(panel_width); // Set max width for the panel
+
+                            ui.vertical_centered(|ui| {
+                                ui.heading("Welcome to Hangman!");
+                                ui.add_space(40.0);
+
+
+                                if ui
+                                .add(egui::Button::new("Play").min_size(egui::vec2(100.0, 30.0)))
+                                .clicked() {
+                                    self.game = Some(HangmanGame::new("california")); // You can randomize this
+                                    self.current_screen = Screen::Game;
+                                    
+                                }
+                                
+                            });
+                        });
+                    });
+                }
+                Screen::Game => {
+
+
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add(egui::Button::new("Back to Home").min_size(egui::vec2(100.0, 30.0)))
+                            .clicked() {
+                            self.current_screen = Screen::Home;
+                            self.game = None;
+                        }
+                    });
+
+                    if let Some(game) = &mut self.game {
+                        // Display game state
+                        ui.label(game.display_hangman());
+                        ui.heading(game.display_progress());
+                        ui.label(format!("Remaining attempts: {}", game.remaining_attempts));
+
+                        if game.is_won() || game.is_lost() {
+                            let score = game.calculate_score();
+                            self.final_score += score; // Assign the final score when the game ends
+                            self.current_screen = Screen::GameOver;
+                        } else {
+                            // Input handling
+                            if !game.final_guess_mode {
+                                ui.horizontal(|ui| {
+                                    ui.label("Guess a letter:");
+                                    let response = ui.text_edit_singleline(&mut self.guess_input);
+
+                                    if response.changed() {
+                                        self.guess_input = self.guess_input.chars().next().unwrap_or('\0').to_string();
+                                    }
+
+                                    if ui.button("Guess").clicked() && !self.guess_input.is_empty() {
+                                        if let Some(c) = self.guess_input.chars().next() {
+                                            if c.is_alphabetic() {
+                                                game.guess(c);
+                                                game.update_score(1); // Award point for correct guess
+                                            }
+                                        }
+                                        self.guess_input.clear();
+                                    }
+
+                                    if ui.button("Final Guess").clicked() {
+                                        game.final_guess_mode = true;
+                                    }
+                                });
+                            } else {
+                                ui.horizontal(|ui| {
+                                    ui.label("Enter the complete word:");
+                                    ui.text_edit_singleline(&mut game.final_guess_input);
+
+                                    if ui.button("Submit").clicked() {
+                                        let final_guess = game.final_guess_input.clone();
+                                        game.process_final_guess(&final_guess);
+                                        game.final_guess_mode = false;
+                                        game.final_guess_input.clear();
+                                    }
+
+                                    if ui.button("Cancel").clicked() {
+                                        game.final_guess_mode = false;
+                                        game.final_guess_input.clear();
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+                Screen::GameOver => {
+                    
+                        ui.add_space(ctx.available_rect().height() * 0.35);
+                    
+                        let available_width = ctx.available_rect().width();
+                        let panel_width = available_width * 0.30;
+                    
+                        ui.horizontal(|ui| {
+                            ui.add_space(available_width * 0.30);
+                            style::homeScreenPanel().show(ui, |ui| {
+                                ui.set_max_width(panel_width); // Set max width for the panel
+                    
+                                ui.vertical_centered(|ui| {
+                                    // Heading styling
+                                    if let Some(game) = &self.game {
+                                        if game.is_won() {
+                                            ui.heading("🎉 Congratulations! You won!");
+                                        } else {
+                                            ui.heading("💀 Game Over!");
+                                        }
+                    
+                                        ui.add_space(10.0);
+                                        // Final score
+                                        ui.label(format!("Final Score: {}", self.final_score));
+                    
+                                        // Word reveal and styling
+                                        ui.label(format!("The word was: {}", game.secret_word));
+                                    }
+                    
+                                    ui.add_space(20.0);
+                    
+                                    // Buttons for navigation
+                                    if ui
+                                        .add(egui::Button::new("Play Again").min_size(egui::vec2(100.0, 30.0)))
+                                        .clicked()
+                                    {
+                                        self.game = Some(HangmanGame::new("california")); // Can randomize the word
+                                        self.current_screen = Screen::Game;
+                                    }
+                    
+                                    ui.add_space(10.0);
+                    
+                                    if ui
+                                        .add(egui::Button::new("Back to Home").min_size(egui::vec2(100.0, 30.0)))
+                                        .clicked()
+                                    {
+                                        self.current_screen = Screen::Home;
+                                        self.game = None;
+                                    }
+                                });
+                            });
+                        });
+                    
+                }
+            }
+        });
+    }
+}
+
+pub async fn run_hangman_gui() -> i32 {
+    let options = eframe::NativeOptions::default();
+    let app = MyApp::new();
+    eframe::run_native(
+        "Hangman",
+        options,
+        Box::new(|_cc| Box::new(MyApp::new()))
+    );
+    
+    app.final_score // Returns the final score after the game ends???
+    
 }

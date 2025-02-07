@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::error::Error;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
 use futures::stream::TryStreamExt;
+use crate::hangman::run_hangman_gui;
 mod clear;
 mod hangman;
-use hangman::run_hangman;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct User {
@@ -36,7 +36,7 @@ async fn find_user(collection: &mongodb::Collection<User>, username: &str) -> Re
 async fn get_user(collection: &mongodb::Collection<User>, username: &str) -> Result<Option<User>, Box<dyn Error>> {
     let filter = doc! { "_id": username };
     let user = collection.find_one(filter).await?;
-    Ok(user) // Returns the user object (if found)
+    Ok(user)
 }
 
 async fn create_user(collection: &mongodb::Collection<User>, user: &User) -> Result<(), Box<dyn Error>> {
@@ -49,8 +49,8 @@ async fn create_user(collection: &mongodb::Collection<User>, user: &User) -> Res
 }
 
 async fn update_user_points(collection: &mongodb::Collection<User>, username: &str, new_points: i32,) -> Result<(), Box<dyn Error>> {
-    let filter = doc! { "_id": username }; // Find user by _id (username)
-    let update = doc! { "$set": { "points": new_points } }; // Set new points value
+    let filter = doc! { "_id": username };
+    let update = doc! { "$set": { "points": new_points } };
 
     let result = collection.update_one(filter, update).await?;
 
@@ -80,7 +80,6 @@ async fn update_user_password(
     Ok(())
 }
 
-
 async fn authenticate_user(
     collection: &mongodb::Collection<User>,
     username: &str,
@@ -91,7 +90,6 @@ async fn authenticate_user(
     }
     Ok(false)
 }
-
 
 async fn delete_user(collection: &mongodb::Collection<User>, username: &str) -> Result<(), Box<dyn std::error::Error>> {
     let result = collection.delete_one(doc! { "_id": username }).await?;
@@ -106,28 +104,18 @@ async fn delete_user(collection: &mongodb::Collection<User>, username: &str) -> 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // MongoDB connection string
     let uri = "mongodb+srv://mechamit000:mecham123@cluster0.imffk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-
-    // Connect to MongoDB
     let client_options = ClientOptions::parse(uri).await?;
     let client = Client::with_options(client_options)?;
 
     println!("Connected to MongoDB!");
 
-    // Access the database and collection
-    let db = client.database("rusty"); // Database name
-    let collection = db.collection::<User>("user"); // Collection name
+    let db = client.database("rusty");
+    let collection = db.collection::<User>("user");
 
-    //active user
     let mut active_user: Option<User> = None;
-
-    //activate reader for tokio main
     let stdin = io::stdin();
     let mut reader = BufReader::new(stdin).lines();
-
-
-
 
     loop {
         println!("Welcome to Rusty Games!");
@@ -176,7 +164,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let password = reader.next_line().await?.unwrap_or_default().trim().to_string();
     
                 let new_user = User {
-                    // leave the clone on username for now. it could be used to cross check the database
                     _id: username.clone(),
                     password,
                     points: 0,
@@ -188,7 +175,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         println!("Account created successfully! Your username can never be changed.");
                     }
                     Err(e) => {
-                        println!("Error: {}", e); // Now this will print "Username already exists!"
+                        println!("Error: {}", e);
                     }
                 }
             }
@@ -223,98 +210,111 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
             match game_choice.as_str() {
                 "1" => {
-                    println!("Starting the game...");
-                    let game_score: i32 = run_hangman();
-                    if let Some(user) = active_user.as_mut() { // Get a mutable reference to active_user
-                        user.points += game_score;
-                        update_user_points(&collection, &user._id, user.points).await.expect("Failed to update points");
+                    println!("Launching Hangman...");
+                
+                    // Get the score from the game
+                    let score = run_hangman_gui().await;
+                
+                    // Only update points if the user is not a guest
+                    if let Some(user) = active_user.as_mut() {
+                        if user._id != "guest" {
+                            // Update points after the game ends
+                            user.points += score;
+                            if let Err(e) = update_user_points(&collection, &user._id, user.points).await {
+                                println!("Failed to update points: {}", e);
+                            } else {
+                                println!("Score updated! You earned {} points!", score);
+                            }
+                        } else {
+                            println!("Playing as guest - score not saved!");
+                        }
                     }
-
-                    
-
-                },
+                }, 
+                
                 "2" => {
                     println!("Fetching leaderboard...");
 
                     let pipeline = vec![
-                    doc! { "$sort": { "points": -1 } }, // Sort by points in descending order
-                    doc! { "$limit": 3 } // Take only the top 3 players
-                ];
+                        doc! { "$sort": { "points": -1 } },
+                        doc! { "$limit": 3 }
+                    ];
 
-                let mut cursor = collection.aggregate(pipeline).await?;
+                    let mut cursor = collection.aggregate(pipeline).await?;
 
-                println!("🏆 Leaderboard 🏆");
-                let mut rank = 1;
-                while let Some(player) = cursor.try_next().await? {
-                    println!("{}. {} - {} points", rank, player.get("_id").unwrap(), player.get("points").unwrap());
-                    rank += 1;
-                }
+                    println!("🏆 Leaderboard 🏆");
+                    let mut rank = 1;
+                    while let Some(player) = cursor.try_next().await? {
+                        println!("{}. {} - {} points", rank, player.get("_id").unwrap(), player.get("points").unwrap());
+                        rank += 1;
+                    }
 
-                println!("\nPress enter to continue...");
-                let mut input = String::new();
-                let mut stdin = io::BufReader::new(io::stdin());
-                stdin.read_line(&mut input).await?;
-
+                    println!("\nPress enter to continue...");
+                    let mut input = String::new();
+                    let mut stdin = io::BufReader::new(io::stdin());
+                    stdin.read_line(&mut input).await?;
                 },
                 "3" => {
-                        println!("Opening Settings...");
+                    if user._id == "guest" {
+                        println!("Settings not available for guest users.");
+                        continue;
+                    }
 
-                        while let Some(user) = active_user.as_ref() {
-                            println!("Settings Menu:");
-                            println!("1. View User Info");
-                            println!("2. Update Password");
-                            println!("3. Delete Account");
-                            println!("4. Back to Main Menu");
+                    println!("Opening Settings...");
 
-                            let settings_choice = reader.next_line().await?.unwrap_or_default().trim().to_string();
+                    loop {
+                        println!("Settings Menu:");
+                        println!("1. View User Info");
+                        println!("2. Update Password");
+                        println!("3. Delete Account");
+                        println!("4. Back to Main Menu");
 
-                            match settings_choice.as_str() {
-                                "1" => {
-                                    println!("User Info:");
-                                    println!("Username: {}", user._id);
-                                    println!("Points: {}", user.points);
-                                }
-                                "2" => {
-                                    println!("Enter new password (no spaces, cannot be blank):");
-                                    let mut new_password = reader.next_line().await?.unwrap_or_default().trim().to_string();
+                        let settings_choice = reader.next_line().await?.unwrap_or_default().trim().to_string();
 
-                                    while new_password.is_empty() || new_password.contains(' ') {
-                                        println!("Password cannot be blank or contain spaces. Try again:");
-                                        new_password = reader.next_line().await?.unwrap_or_default().trim().to_string();
-                                    }
-
-                                    if let Err(e) = update_user_password(&collection, &user._id, &new_password).await {
-                                        println!("Error updating password: {}", e);
-                                    } else {
-                                        println!("Password successfully updated.");
-                                    }
-                                }
-                                "3" => {
-                                    println!("Are you sure you want to delete your account? Type 'yes' to confirm:");
-                                    let confirmation = reader.next_line().await?.unwrap_or_default().trim().to_lowercase();
-
-                                    if confirmation == "yes" {
-                                        if let Err(e) = delete_user(&collection, &user._id).await {
-                                            println!("Error deleting account: {}", e);
-                                        } else {
-                                            println!("Account deleted successfully.");
-                                            active_user = None; // Log out user after deletion
-                                            break; // Exit settings
-                                        }
-                                    } else {
-                                        println!("Account deletion canceled.");
-                                    }
-                                }
-                                "4" => {
-                                    println!("Returning to main menu...");
-                                    break; // Exit settings loop
-                                }
-                                _ => println!("Invalid choice. Try again."),
+                        match settings_choice.as_str() {
+                            "1" => {
+                                println!("User Info:");
+                                println!("Username: {}", user._id);
+                                println!("Points: {}", user.points);
                             }
-                        }
-                    },
+                            "2" => {
+                                println!("Enter new password (no spaces, cannot be blank):");
+                                let mut new_password = reader.next_line().await?.unwrap_or_default().trim().to_string();
 
-                // Back to game menu
+                                while new_password.is_empty() || new_password.contains(' ') {
+                                    println!("Password cannot be blank or contain spaces. Try again:");
+                                    new_password = reader.next_line().await?.unwrap_or_default().trim().to_string();
+                                }
+
+                                if let Err(e) = update_user_password(&collection, &user._id, &new_password).await {
+                                    println!("Error updating password: {}", e);
+                                } else {
+                                    println!("Password successfully updated.");
+                                }
+                            }
+                            "3" => {
+                                println!("Are you sure you want to delete your account? Type 'yes' to confirm:");
+                                let confirmation = reader.next_line().await?.unwrap_or_default().trim().to_lowercase();
+
+                                if confirmation == "yes" {
+                                    if let Err(e) = delete_user(&collection, &user._id).await {
+                                        println!("Error deleting account: {}", e);
+                                    } else {
+                                        println!("Account deleted successfully.");
+                                        active_user = None;
+                                        break;
+                                    }
+                                } else {
+                                    println!("Account deletion canceled.");
+                                }
+                            }
+                            "4" => {
+                                println!("Returning to main menu...");
+                                break;
+                            }
+                            _ => println!("Invalid choice. Try again."),
+                        }
+                    }
+                },
                 "4" => {
                     println!("Logging out...");
                     active_user = None;
@@ -323,25 +323,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
     }
-    
-
-
-
-
-  
-
-    
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
