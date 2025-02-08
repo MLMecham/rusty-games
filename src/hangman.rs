@@ -129,7 +129,7 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             match self.current_screen {
                 Screen::Home => {
-                    ui.add_space(ctx.available_rect().height() * 0.35);
+                    ui.add_space(ctx.available_rect().height() * 0.30);
 
                     let available_width = ctx.available_rect().width();
                     let panel_width = available_width * 0.30;
@@ -156,77 +156,102 @@ impl eframe::App for MyApp {
                         });
                     });
                 }
+                
                 Screen::Game => {
-
-
+                    ui.add_space(10.0);
+                    
                     ui.horizontal(|ui| {
                         if ui
-                            .add(egui::Button::new("Back to Home").min_size(egui::vec2(100.0, 30.0)))
-                            .clicked() {
+                            .add_sized([120.0, 40.0], egui::Button::new("Back to Home"))
+                            .clicked()
+                        {
                             self.current_screen = Screen::Home;
                             self.game = None;
                         }
                     });
-
+                
                     if let Some(game) = &mut self.game {
-                        // Display game state
-                        ui.label(game.display_hangman());
-                        ui.heading(game.display_progress());
-                        ui.label(format!("Remaining attempts: {}", game.remaining_attempts));
-
+                        ui.add_space(20.0);
+                
+                        // Centered game content
+                        ui.vertical_centered(|ui| {
+                            // Hangman ASCII art display
+                            ui.monospace(game.display_hangman());
+                            ui.add_space(15.0);
+                
+                            // Word progress
+                            ui.label(egui::RichText::new(game.display_progress())
+                                .size(24.0)
+                                .strong());
+                            ui.add_space(10.0);
+                
+                            // Remaining attempts
+                            ui.label(egui::RichText::new(format!("Attempts left: {}", game.remaining_attempts))
+                                .size(18.0)
+                                .color(egui::Color32::RED));
+                        });
+                
+                        ui.add_space(20.0);
+                
                         if game.is_won() || game.is_lost() {
                             let score = game.calculate_score();
-                            self.final_score += score; // Assign the final score when the game ends
+                            self.final_score += score;
                             self.current_screen = Screen::GameOver;
                         } else {
-                            // Input handling
-                            if !game.final_guess_mode {
-                                ui.horizontal(|ui| {
+                            ui.vertical_centered(|ui| {
+                                if !game.final_guess_mode {
                                     ui.label("Guess a letter:");
-                                    let response = ui.text_edit_singleline(&mut self.guess_input);
-
+                                    let response = ui.add_sized([50.0, 30.0], egui::TextEdit::singleline(&mut self.guess_input));
+                
                                     if response.changed() {
                                         self.guess_input = self.guess_input.chars().next().unwrap_or('\0').to_string();
                                     }
-
-                                    if ui.button("Guess").clicked() && !self.guess_input.is_empty() {
+                                    
+                                    ui.add_space(10.0);
+                                    if ui.add_sized([100.0, 30.0], egui::Button::new("Guess")).clicked()
+                                        && !self.guess_input.is_empty()
+                                    {
                                         if let Some(c) = self.guess_input.chars().next() {
                                             if c.is_alphabetic() {
                                                 game.guess(c);
-                                                game.update_score(1); // Award point for correct guess
+                                                game.update_score(1);
                                             }
                                         }
                                         self.guess_input.clear();
                                     }
-
-                                    if ui.button("Final Guess").clicked() {
+                                    
+                                    ui.add_space(10.0);
+                                    if ui.add_sized([120.0, 30.0], egui::Button::new("Final Guess")).clicked() {
                                         game.final_guess_mode = true;
                                     }
-                                });
-                            } else {
-                                ui.horizontal(|ui| {
-                                    ui.label("Enter the complete word:");
-                                    ui.text_edit_singleline(&mut game.final_guess_input);
-
-                                    if ui.button("Submit").clicked() {
+                                } else {
+                                    ui.label("Enter the full word:");
+                                    ui.add_sized([200.0, 30.0], egui::TextEdit::singleline(&mut game.final_guess_input));
+                                    
+                                    ui.add_space(10.0);
+                                    if ui.add_sized([100.0, 30.0], egui::Button::new("Submit")).clicked() {
                                         let final_guess = game.final_guess_input.clone();
                                         game.process_final_guess(&final_guess);
                                         game.final_guess_mode = false;
                                         game.final_guess_input.clear();
                                     }
-
-                                    if ui.button("Cancel").clicked() {
+                                    
+                                    ui.add_space(10.0);
+                
+                                    if ui.add_sized([100.0, 30.0], egui::Button::new("Cancel")).clicked() {
                                         game.final_guess_mode = false;
                                         game.final_guess_input.clear();
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
                     }
                 }
+                
+
                 Screen::GameOver => {
                     
-                        ui.add_space(ctx.available_rect().height() * 0.35);
+                        ui.add_space(ctx.available_rect().height() * 0.30);
                     
                         let available_width = ctx.available_rect().width();
                         let panel_width = available_width * 0.30;
@@ -235,7 +260,7 @@ impl eframe::App for MyApp {
                             ui.add_space(available_width * 0.30);
                             style::homeScreenPanel().show(ui, |ui| {
                                 ui.set_max_width(panel_width); // Set max width for the panel
-                    
+                            
                                 ui.vertical_centered(|ui| {
                                     // Heading styling
                                     if let Some(game) = &self.game {
