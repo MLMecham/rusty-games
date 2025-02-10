@@ -16,18 +16,18 @@ struct User {
     points: i32,
 }
 
-async fn get_input(prompt: &str) -> String {
-    println!("{}", prompt);
-    let mut input = String::new();
-    let stdin = io::stdin();
-    let mut reader = io::BufReader::new(stdin);
-    reader.read_line(&mut input).await.unwrap();
-    input.trim().to_string()
-}
+// async fn get_input(prompt: &str) -> String {
+//     println!("{}", prompt);
+//     let mut input = String::new();
+//     let stdin = io::stdin();
+//     let mut reader = io::BufReader::new(stdin);
+//     reader.read_line(&mut input).await.unwrap();
+//     input.trim().to_string()
+// }
 
-fn sanitize_username(input: &str) -> String {
-    input.to_lowercase().chars().filter(|c| c.is_ascii_lowercase()).collect()
-}
+// fn sanitize_username(input: &str) -> String {
+//     input.to_lowercase().chars().filter(|c| c.is_ascii_lowercase()).collect()
+// }
 
 async fn wait_for_enter() {
     // println!("Log in to access user settings! Press Enter to continue");

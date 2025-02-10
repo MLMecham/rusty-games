@@ -50,7 +50,7 @@ async fn fetch_random_word(api_key: &str) -> Result<String, Box<dyn Error>> {
             Ok(random_word_from_bank())
         }
     } else {
-        Err("Can't retrieve word from API nor word bank: {}".into())
+        Ok(random_word_from_bank())
     }
 
     
@@ -69,7 +69,7 @@ fn random_word_from_bank() -> String {
         "aspire", "balance", "conquer"
     ];
 
-    let mut rng = rand::thread_rng();
-    let random_index = rng.gen_range(0..word_bank.len());
+    let mut rng = rand::rng();
+    let random_index = rng.random_range(0..word_bank.len());
     word_bank[random_index].to_string()
 }
