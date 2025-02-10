@@ -2,9 +2,11 @@ use mongodb::{bson::doc, options::ClientOptions, Client};
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use tokio::io::{self, AsyncBufReadExt, BufReader};
+use tokio::io::stdin;
 use futures::stream::TryStreamExt;
 mod clear;
 mod hangman;
+mod dictionary;
 use hangman::run_hangman;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,6 +27,16 @@ async fn get_input(prompt: &str) -> String {
 
 fn sanitize_username(input: &str) -> String {
     input.to_lowercase().chars().filter(|c| c.is_ascii_lowercase()).collect()
+}
+
+async fn wait_for_enter() {
+    // println!("Log in to access user settings! Press Enter to continue");
+
+    let mut input = String::new();
+    let mut reader = BufReader::new(stdin());
+    reader.read_line(&mut input).await.unwrap(); // Waits for Enter
+
+    println!("Continuing...");
 }
 
 async fn find_user(collection: &mongodb::Collection<User>, username: &str) -> Result<Option<User>, Box<dyn Error>> {
@@ -224,7 +236,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             match game_choice.as_str() {
                 "1" => {
                     println!("Starting the game...");
-                    let game_score: i32 = run_hangman();
+                    let game_score: i32 = run_hangman().await;
                     if let Some(user) = active_user.as_mut() { // Get a mutable reference to active_user
                         user.points += game_score;
                         update_user_points(&collection, &user._id, user.points).await.expect("Failed to update points");
@@ -314,7 +326,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             }
                         }
                     } else {
-                        println!("Log in to access user settings!")
+                        println!("Log in to access user settings! Press enter to continue");
+                        wait_for_enter().await;
                     }
                     },
 
